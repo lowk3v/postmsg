@@ -100,7 +100,7 @@ func main() {
 					}
 				}
 
-				if err != nil {
+				if err != nil && !silent {
 					fmt.Println(color.RedString("[-]"), requestURL, color.RedString(err.Error()))
 				}
 
