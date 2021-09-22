@@ -91,7 +91,6 @@ func main() {
 					chromedp.EvaluateAsDevTools(jsCode(), &messageEvents),
 				)
 
-				fmt.Println(url)
 				if len(messageEvents) > 0 {
 					for index, listener := range unique(messageEvents) {
 						log.Printf("%s: %v", color.GreenString("[+] ") + requestURL, color.GreenString("Potential!"))
