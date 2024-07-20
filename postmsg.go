@@ -17,7 +17,6 @@ import (
 	"github.com/fatih/color"
 )
 
-
 func banner() {
 	fmt.Println(color.YellowString("=================================================="))
 	fmt.Println(color.HiBlueString(`
@@ -26,24 +25,33 @@ func banner() {
 	██████╔╝██║   ██║███████╗   ██║   ██╔████╔██║███████╗██║  ███╗
 	██╔═══╝ ██║   ██║╚════██║   ██║   ██║╚██╔╝██║╚════██║██║   ██║
 	██║     ╚██████╔╝███████║   ██║   ██║ ╚═╝ ██║███████║╚██████╔╝
-	╚═╝      ╚═════╝ ╚══════╝   ╚═╝   ╚═╝     ╚═╝╚══════╝ ╚═════╝` + " By @KevSecurity_ "))
-	fmt.Println(color.BlueString("Scans URLs for Post Message Event Listeners."))
+	╚═╝      ╚═════╝ ╚══════╝   ╚═╝   ╚═╝     ╚═╝╚══════╝ ╚═════╝` + " By @LowK3v_ "))
+	fmt.Println(color.BlueString("Scanning targets for Post Message Event Listeners"))
 	fmt.Println("Credits: @divadbate for inspiring me with https://github.com/raverrr/plution")
 	fmt.Println(color.YellowString("==================================================\n"))
 }
 
+var target string
 var output string
 var concurrency int
 var silent bool
+var help bool
 
 func main() {
-	log.SetFlags(0) // supress date and time on each line
-	flag.BoolVar(&silent, "silent", false, "--> Output (Will only output vulnerable URLs)"+"\n")
-	flag.StringVar(&output, "o", devNull(), "--> Output (Will only output vulnerable URLs)"+"\n")
-	flag.IntVar(&concurrency, "c", 5, "--> Number of concurrent threads (default 5)"+"\n")
+	log.SetFlags(0) // suppress date and time on each line
+	flag.StringVar(&target, "t", "", "-target")
+	flag.BoolVar(&silent, "silent", false, "Hide banner")
+	flag.StringVar(&output, "o", devNull(), "Output (Will only output vulnerable URLs)")
+	flag.IntVar(&concurrency, "c", 5, "Number of concurrent threads")
+	flag.BoolVar(&help, "h", false, "Print usage")
 	flag.Parse()
 
-	if !silent{
+	if help {
+		flag.PrintDefaults()
+		return
+	}
+
+	if !silent {
 		banner()
 	}
 
@@ -52,9 +60,14 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed creating file: %s", err)
 	}
-	consoleWriter := bufio.NewWriter(file)
+	consoleOutput := bufio.NewWriter(file)
 
-	scanner := bufio.NewScanner(os.Stdin)
+	execution(target, consoleOutput)
+}
+
+func execution(target string, consoleOutput *bufio.Writer) {
+	// main execution
+
 	jobs := make(chan string)
 
 	// Chromeless options
@@ -82,7 +95,7 @@ func main() {
 		go func() {
 			for requestURL := range jobs {
 
-				url = requestURL+hasQuery(requestURL)
+				url = requestURL + hasQuery(requestURL)
 				ctx, cancel := context.WithTimeout(pctx, time.Second*30)
 				ctx, _ = chromedp.NewContext(ctx)
 
@@ -94,10 +107,10 @@ func main() {
 				fmt.Println(url)
 				if len(messageEvents) > 0 {
 					for index, listener := range unique(messageEvents) {
-						log.Printf("%s: %v", color.GreenString("[+] ") + requestURL, color.GreenString("Potential!"))
+						log.Printf("%s: %v", color.GreenString("[+] ")+requestURL, color.GreenString("Potential!"))
 						log.Printf("%s: %v", index, listener)
-						consoleWriter.WriteString(requestURL + "\n")
-						consoleWriter.Flush()
+						consoleOutput.WriteString(requestURL + "\n")
+						consoleOutput.Flush()
 					}
 				}
 
@@ -111,10 +124,15 @@ func main() {
 		}()
 	}
 
-	// Reading input
-	for scanner.Scan() {
-		jobs <- scanner.Text()
+	if target == "" { // Reading input
+		scanner := bufio.NewScanner(os.Stdin)
+		for scanner.Scan() {
+			jobs <- scanner.Text()
+		}
+	} else { // or from arg
+		jobs <- target
 	}
+
 	close(jobs)
 	wgroup.Wait()
 }
@@ -147,7 +165,7 @@ func jsCode() string {
 		})(getEventListeners(window))`
 }
 
-func unique (s []string) []string {
+func unique(s []string) []string {
 	unique := make(map[string]bool, len(s))
 	us := make([]string, len(unique))
 	for _, elem := range s {
@@ -162,7 +180,7 @@ func unique (s []string) []string {
 	return us
 }
 
-func devNull() string{
+func devNull() string {
 	if runtime.GOOS == "windows" {
 		return "NUL"
 	}
