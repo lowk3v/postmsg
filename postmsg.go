@@ -143,9 +143,6 @@ func hasQuery(url string) string {
 	var p = ""
 	if Qmark.MatchString(url) {
 		p = "&"
-
-	} else {
-		p = "?"
 	}
 	return p
 }
